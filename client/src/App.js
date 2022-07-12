@@ -1,25 +1,39 @@
-import logo from './logo.svg';
 import './App.css';
+import io from 'socket.io-client'
+import React, { useEffect } from "react";
+import TickerRow from './components/TickerRow';
+import { TickersSlice } from './store/reducers/TickersSlice';
+import { useAppDispatch, useAppSelector } from './store/redux-hooks';
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+const socket = io.connect('http://localhost:4000');
+
+const App = () => {
+
+  const { setTickers, addDataToChart, showTicker } = TickersSlice.actions;
+  const dispatch = useAppDispatch();
+  const { tickers, hiddenTickers } = useAppSelector((state) => state.tickersReducer);
+
+  useEffect(() => {
+    socket.emit('start');
+    socket.on('ticker', (data) => {
+      dispatch(setTickers(data));
+      dispatch(addDataToChart(data));
+    });
+  }, []);
+
+  const shownTickers = tickers.filter(({ shortName }) =>
+    !hiddenTickers.includes(shortName)).map(ticker => <TickerRow key={ticker.shortName} ticker={ticker} />)
+
+  const hiddenTickersToDisplay = hiddenTickers.map(ticker =>
+    <div className="hidden-ticker" key={ticker} onClick={() => dispatch(showTicker(ticker))}>{ticker}</div>)
+
+  return (<div className="app">
+    Tickers:
+    {shownTickers}
+    {!!hiddenTickers.length && <div className="hidden-tickers-container">
+      {hiddenTickersToDisplay}
+    </div>}
+  </div>)
 }
 
 export default App;
